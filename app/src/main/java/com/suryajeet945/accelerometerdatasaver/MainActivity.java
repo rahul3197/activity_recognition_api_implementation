@@ -16,6 +16,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.MyClass;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -43,6 +45,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //MyClass myClass=new MyClass();
 
         X_value=(TextView)findViewById(R.id.x_value);
         Y_value=(TextView)findViewById(R.id.y_value);
