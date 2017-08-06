@@ -16,7 +16,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.MyClass;
 
 import java.io.File;
 import java.io.FileWriter;
