@@ -113,5 +113,14 @@
 
         </LinearLayout>
     </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="300dp">
+        <com.jjoe64.graphview.GraphView
+            android:id="@+id/graph_x"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            />
+    </LinearLayout>
 
 </LinearLayout>
