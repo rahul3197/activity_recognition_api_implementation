@@ -1,7 +1,6 @@
 package com.suryajeet945.accelerometerdatasaver;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -16,12 +15,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
@@ -33,7 +32,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -50,18 +48,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Button stopButton;
     int frameLength=15;
     int polynomialOrder=4;
+    int graphSize=200;
     int index=frameLength;
     boolean capturingData =false;
     public List<AccelerationData>Data=new ArrayList<>();
-    GraphView graph_x;
-    List<Double>normleData=new ArrayList<>(500);
+    GraphView graph_x,graph_y;
+    List<Double> normalData =new ArrayList<>(500);
+    double filteredData=0;
+    List<Double>filteredDataList=new ArrayList<>();
 
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
     SGolay sGolay;
     HandlerClass handlerClass=new HandlerClass();
 
-    private LineGraphSeries<DataPoint> series_x;
+    private LineGraphSeries<DataPoint> series_x,series_y;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,24 +70,42 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if (sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
-            // success! we have an accelerometer
-
             accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         }
 
 
         graph_x=(GraphView)findViewById(R.id.graph_x);
-        //graph_x.getViewport().setScalable(true); // enables horizontal zooming and scrolling
-        //graph_x.getViewport().setScalableY(true); // enables vertical zooming and scrolling
+        graph_x.getViewport().setScalable(true); // enables horizontal zooming and scrolling
+       // graph_x.getViewport().setScalableY(true); // enables vertical zooming and scrolling
+
+        graph_y=(GraphView)findViewById(R.id.graph_y);
+        graph_y.getViewport().setScalable(true); // enables horizontal zooming and scrolling
+       // graph_y.getViewport().setScalableY(true); // enables vertical zooming and scrolling
+
+        graph_x.getViewport().setYAxisBoundsManual(true);
+        graph_x.getViewport().setMinY(0);
+        graph_x.getViewport().setMaxY(30);
+
+        graph_y.getViewport().setYAxisBoundsManual(true);
+        graph_y.getViewport().setMinY(0);
+        graph_y.getViewport().setMaxY(30);
+
         // data
         series_x = new LineGraphSeries<DataPoint>();
-        series_x.setTitle("X");
+        series_x.setTitle("sqrt(x*x+y*y+z*z)");
         series_x.setColor(Color.RED);
+        series_y = new LineGraphSeries<DataPoint>();
+        series_y.setTitle("Filtered");
+        series_y.setColor(Color.GREEN);
 
         graph_x.addSeries(series_x);
+        graph_y.addSeries(series_y);
 
-        //MyClass myClass=new MyClass();
+        graph_x.getLegendRenderer().setVisible(true);
+        graph_x.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graph_y.getLegendRenderer().setVisible(true);
+        graph_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
 
         X_value=(TextView)findViewById(R.id.x_value);
         Y_value=(TextView)findViewById(R.id.y_value);
@@ -114,31 +133,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                generateNoteOnSD(MainActivity.this,fileName.getText().toString(),GetStringValueFromList(Data));
+                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"xyz",GetStringValueFromList(Data));
+                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"norm", normalData.toString());
+                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"filtered",filteredDataList.toString());
             }
         });
-       // mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
-        //mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         sGolay=new SGolay(polynomialOrder,frameLength);
-       // SGolayCalculator();
 
     }
-   /* public void SGolayCalculator (){
-        Thread thread=new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true){
-                    if(Data.size()>2*frameLength+1){
-                        sGolay.GetFiltredData(GetFrameData(index,frameLength,Data));
-                        index++;
-                        handlerClass.obtainMessage(1).sendToTarget();
-                    }
-                }
-            }
-        });
-        thread.start();
-    }*/
     public RealMatrix GetFrameDataFromAcceData(int index,int frameSize,List<AccelerationData>data){
         double[] frameData=new double[2*frameSize+1];
         for (int i=-frameSize;i<=frameSize && i<data.size();i++){
@@ -185,12 +188,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case 1:
-                    series_x.appendData(
-                            new DataPoint(index,sGolay.GetFiltredData(GetFrameData(index,frameLength,normleData))),false,300);
+
+                    series_y.appendData(
+                            new DataPoint(index,filteredData),true,graphSize);
+
                     return;
                 case 2:
                     series_x.appendData(
-                            new DataPoint(index,((AccelerationData )msg.obj).x),false,100);
+                            new DataPoint(index,((AccelerationData )msg.obj).NormalData()),true,graphSize);
+
                     return;
                 default:
                     return;
@@ -204,15 +210,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     protected void onPause() {
         super.onPause();
-        mSensorManager.unregisterListener(this);
+      //  mSensorManager.unregisterListener(this);
     }
-int delay=0;
+    int delay=0;
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
 
         if (capturingData && sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             delay++;
-            if (delay == 50) {
+            if (delay == 5) {
                 delay = 0;
             }
             if (delay == 0) {
@@ -222,12 +228,21 @@ int delay=0;
                 z = sensorEvent.values[2];
 
 
-                normleData.add(Math.sqrt(x * x + y * y + z * z));
+                normalData.add(Math.sqrt(x * x + y * y + z * z));
                 X_value.setText(Float.toString(x));
                 Y_value.setText(Float.toString(y));
                 Z_value.setText(Float.toString(z));
                 AccelerationData accelerationData = new AccelerationData(sensorEvent.values[0], sensorEvent.values[1], sensorEvent.values[2]);
                 handlerClass.obtainMessage(2, accelerationData).sendToTarget();
+
+                if (normalData.size()>2*frameLength+1) {
+                    RealMatrix frameData=GetFrameData(index, frameLength, normalData);
+                    filteredData = sGolay.GetFiltredData(frameData);
+                    filteredDataList.add(filteredData);
+                    handlerClass.obtainMessage(1, accelerationData).sendToTarget();
+                    index++;
+                }
+
                 if (Data == null) {
                     Data = new ArrayList<>();
                 } else {
@@ -235,9 +250,6 @@ int delay=0;
                 }
                 currentDataLength.setText(Integer.toString(Data.size()));
                 Log.d("Sensor", accelerationData.toString());
-            /*if(normleData.size()>2*frameLength+1) {
-                handlerClass.obtainMessage(1).sendToTarget();
-            }*/
             }
         }
     }

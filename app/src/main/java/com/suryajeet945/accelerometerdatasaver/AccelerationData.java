@@ -13,4 +13,7 @@ public  class AccelerationData{
         this.y=y;
         this.z=z;
     }
+    public double NormalData(){
+        return Math.sqrt(x*x+y*y+z*z);
+    }
 }

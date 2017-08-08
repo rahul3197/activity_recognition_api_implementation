@@ -47,9 +47,14 @@ public class RealTimeGraph extends AppCompatActivity {
         series_y.setTitle("Y");
         series_y.setColor(Color.GREEN);
 
+        graph_x.getLegendRenderer().setVisible(true);
+        graph_x.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graph_y.getLegendRenderer().setVisible(true);
+        graph_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+
         List<Double> data=new ArrayList<>(200);
         for(int i=0;i<200;i++){
-            data.add(Math.sin(2*3.14*0.005*i)+random.nextDouble()*0.3);
+            data.add(Math.sin(2*3.14*0.005*i)*20+random.nextDouble()*2);
             series_x.appendData(new DataPoint(i,data.get(i)), false, 200);
         }
 
