@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AcceleroMeterDataSaver</string>
+    <string name="app_name">AcceleroMeter Data Filter</string>
     <string name="title_activity_settings">Settings</string>
 
     <!-- Strings related to Settings -->

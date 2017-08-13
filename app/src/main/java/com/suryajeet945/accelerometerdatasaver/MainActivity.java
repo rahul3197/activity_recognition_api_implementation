@@ -1,6 +1,7 @@
 package com.suryajeet945.accelerometerdatasaver;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.hardware.Sensor;
@@ -13,6 +14,8 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -41,9 +44,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private SensorManager sensorManager;
     private Sensor accelerometer;
 
-    TextView X_value;
-    TextView Y_value;
-    TextView Z_value;
+    TextView X_value,WindowSizeValue;
+    TextView Y_value,PolyValue;
+    TextView Z_value,GraphLenghtValue;
     TextView currentDataLength;
     EditText fileName;
     Button saveButton;
@@ -61,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     List<Double> yData =new ArrayList<>(500);
     List<Double> zData =new ArrayList<>(500);
 
-    int index=Utility.WindowSize;
+    int index;//=Utility.WindowSize;
     double filteredData=0;
     List<Double>filteredDataList=new ArrayList<>();
 
@@ -76,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             series_y,series_yf,
             series_z,series_zf,
             series_normal, series_normalf;
-    ExecutorService sGolayThreads;
+    ExecutorService sGolayThreadsX,sGolayThreadsY,sGolayThreadsZ,sGolayThreadsNormal;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,11 +96,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         }
 
-        this.sGolayThreads = Executors.newFixedThreadPool(6);
+        this.sGolayThreadsNormal = Executors.newFixedThreadPool(1);
+        this.sGolayThreadsX=Executors.newFixedThreadPool(1);
+        this.sGolayThreadsY=Executors.newFixedThreadPool(1);
+        this.sGolayThreadsZ=Executors.newFixedThreadPool(1);
 
         X_value=(TextView)findViewById(R.id.x_value);
         Y_value=(TextView)findViewById(R.id.y_value);
         Z_value=(TextView)findViewById(R.id.z_value);
+
+        WindowSizeValue=(TextView)findViewById(R.id.window_value);
+        PolyValue=(TextView)findViewById(R.id.poly_value);
+        GraphLenghtValue=(TextView)findViewById(R.id.graph_value);
+
+        WindowSizeValue.setText(Integer.toString(Utility.WindowSize));
+        PolyValue.setText(Integer.toString(Utility.PolyOrder));
+        GraphLenghtValue.setText(Integer.toString(Utility.GraphSize));
 
         currentDataLength=(TextView)findViewById(R.id.countTextView);
 
@@ -109,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             public void onClick(View view) {
                 capturingData =true;
                 Data=new ArrayList<AccelerationData>();
+             InitializeGraphAndSeries();
             }
         });
         stopButton=(Button)findViewById(R.id.stopButton);
@@ -269,7 +284,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     if(Utility.IsFilterX){
                         final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, xData);
                         final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.x,0);
-                        sGolayThreads.execute(new Runnable() {
+                        sGolayThreadsX.execute(new Runnable() {
                             @Override
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
@@ -283,7 +298,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     if(Utility.IsFilterY){
                         final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, yData);
                         final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.y,0);
-                        sGolayThreads.execute(new Runnable() {
+                        sGolayThreadsY.execute(new Runnable() {
                             @Override
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
@@ -297,7 +312,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     if(Utility.IsFilterZ){
                         final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, zData);
                         final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.normal,0);
-                        sGolayThreads.execute(new Runnable() {
+                        sGolayThreadsZ.execute(new Runnable() {
                             @Override
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
@@ -311,7 +326,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     if(Utility.IsFilterNormal) {
                         final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, normalData);
                         final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.normal,0);
-                        sGolayThreads.execute(new Runnable() {
+                       sGolayThreadsNormal.execute(new Runnable() {
                             @Override
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
@@ -319,7 +334,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                 filteredDataList.add(filteredData);
                                 handlerClass.obtainMessage(Utility.Normal, dataAndFilteredData).sendToTarget();
                                 handlerClass.obtainMessage(Utility.NormalF, dataAndFilteredData).sendToTarget();
-                            }
+                           }
                         });
                     }
                     if(Utility.IsFilterX||Utility.IsFilterY||Utility.IsFilterZ||Utility.IsFilterNormal) {
@@ -380,11 +395,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         Utility.WindowSize=sharedPreferences.getInt(Utility.WindowSizeString,15);
         Utility.PolyOrder=sharedPreferences.getInt(Utility.PolyOrderString,7);
         Utility.GraphSize=sharedPreferences.getInt(Utility.GraphSizeString,200);
+
+        index=Utility.WindowSize;
+       // InitializeGraphAndSeries();
     }
     @Override
     public void onResume(){
         super.onResume();
-        //Utility.sGolay=new SGolay(Utility.PolyOrder,Utility.WindowSize);
+        capturingData=false;
+        Utility.sGolay=new SGolay(Utility.PolyOrder,Utility.WindowSize);
+        GetSavedUtilityData();
+        GraphVisibility();
+
+        WindowSizeValue.setText(Integer.toString(Utility.WindowSize));
+        PolyValue.setText(Integer.toString(Utility.PolyOrder));
+        GraphLenghtValue.setText(Integer.toString(Utility.GraphSize));
+
 
 
     }
@@ -409,27 +435,27 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
         graphView_x.getViewport().setYAxisBoundsManual(true);
-        graphView_x.getViewport().setMinY(0);
-        graphView_x.getViewport().setMaxY(30);
+        graphView_x.getViewport().setMinY(-15);
+        graphView_x.getViewport().setMaxY(15);
         graphView_y.getViewport().setYAxisBoundsManual(true);
-        graphView_y.getViewport().setMinY(0);
-        graphView_y.getViewport().setMaxY(30);
+        graphView_y.getViewport().setMinY(-15);
+        graphView_y.getViewport().setMaxY(15);
         graphView_z.getViewport().setYAxisBoundsManual(true);
-        graphView_z.getViewport().setMinY(0);
-        graphView_z.getViewport().setMaxY(30);
+        graphView_z.getViewport().setMinY(-15);
+        graphView_z.getViewport().setMaxY(15);
         graphView_normal.getViewport().setYAxisBoundsManual(true);
         graphView_normal.getViewport().setMinY(0);
         graphView_normal.getViewport().setMaxY(30);
 
         graphView_xf.getViewport().setYAxisBoundsManual(true);
-        graphView_xf.getViewport().setMinY(0);
-        graphView_xf.getViewport().setMaxY(30);
+        graphView_xf.getViewport().setMinY(-15);
+        graphView_xf.getViewport().setMaxY(15);
         graphView_yf.getViewport().setYAxisBoundsManual(true);
-        graphView_yf.getViewport().setMinY(0);
-        graphView_yf.getViewport().setMaxY(30);
+        graphView_yf.getViewport().setMinY(-15);
+        graphView_yf.getViewport().setMaxY(15);
         graphView_zf.getViewport().setYAxisBoundsManual(true);
-        graphView_zf.getViewport().setMinY(0);
-        graphView_zf.getViewport().setMaxY(30);
+        graphView_zf.getViewport().setMinY(-15);
+        graphView_zf.getViewport().setMaxY(15);
         graphView_normalf.getViewport().setYAxisBoundsManual(true);
         graphView_normalf.getViewport().setMinY(0);
         graphView_normalf.getViewport().setMaxY(30);
@@ -450,16 +476,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         series_xf = new LineGraphSeries<DataPoint>();
         series_xf.setTitle("Filtered x");
-        series_xf.setColor(Color.RED);
+        series_xf.setColor(Color.GREEN);
         series_yf = new LineGraphSeries<DataPoint>();
         series_yf.setTitle("Filtered y");
-        series_yf.setColor(Color.RED);
+        series_yf.setColor(Color.GREEN);
         series_zf = new LineGraphSeries<DataPoint>();
         series_zf.setTitle("Filtered z");
-        series_zf.setColor(Color.RED);
+        series_zf.setColor(Color.GREEN);
         series_normalf = new LineGraphSeries<DataPoint>();
         series_normalf.setTitle("Filtered normal");
         series_normalf.setColor(Color.GREEN);
+
+        graphView_x.removeAllSeries();
+        graphView_xf.removeAllSeries();
+        graphView_y.removeAllSeries();
+        graphView_yf.removeAllSeries();
+        graphView_z.removeAllSeries();
+        graphView_zf.removeAllSeries();
+        graphView_normal.removeAllSeries();
+        graphView_normalf.removeAllSeries();
 
         graphView_x.addSeries(series_x);
         graphView_y.addSeries(series_y);
@@ -487,13 +522,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         graphView_normalf.getLegendRenderer().setVisible(true);
         graphView_normalf.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
 
-        graphView_x.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.INVISIBLE);
-        graphView_xf.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.INVISIBLE);
-        graphView_y.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.INVISIBLE);
-        graphView_yf.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.INVISIBLE);
-        graphView_z.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.INVISIBLE);
-        graphView_zf.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.INVISIBLE);
-        graphView_normal.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.INVISIBLE);
-        graphView_normalf.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.INVISIBLE);
+        GraphVisibility();
+
+    }
+    public void GraphVisibility(){
+        graphView_x.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.GONE);
+        graphView_xf.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.GONE);
+        graphView_y.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.GONE);
+        graphView_yf.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.GONE);
+        graphView_z.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.GONE);
+        graphView_zf.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.GONE);
+        graphView_normal.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.GONE);
+        graphView_normalf.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.GONE);
+    }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.settings) {
+            Intent intent=new Intent(MainActivity.this,SettingActivity.class);
+            startActivity(intent);
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }

@@ -13,11 +13,14 @@ public class SettingActivity extends AppCompatActivity {
     ToggleButton toggleButtonX,toggleButtonY,toggleButtonZ,toggleButtonNormal;
     EditText editTextWindowSize,editTextPolyOrder, editTextGraphSize;
     Button saveButton;
-    SharedPreferences sharedPreferences=getSharedPreferences("UtilityData",MODE_PRIVATE);
+    SharedPreferences sharedPreferences;//=getSharedPreferences("UtilityData",MODE_PRIVATE);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
+
+        sharedPreferences=getSharedPreferences("UtilityData",MODE_PRIVATE);
+
         toggleButtonX=(ToggleButton)findViewById(R.id.x_toggle);
         toggleButtonY=(ToggleButton)findViewById(R.id.y_toggle);
         toggleButtonZ=(ToggleButton)findViewById(R.id.z_toggle);
@@ -46,19 +49,19 @@ public class SettingActivity extends AppCompatActivity {
         toggleButtonY.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-                SaveUtilityDataBoolean(Utility.IsFilterXString,isChecked);
+                SaveUtilityDataBoolean(Utility.IsFilterYString,isChecked);
             }
         });
         toggleButtonZ.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-                SaveUtilityDataBoolean(Utility.IsFilterXString,isChecked);
+                SaveUtilityDataBoolean(Utility.IsFilterZString,isChecked);
             }
         });
         toggleButtonNormal.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-                SaveUtilityDataBoolean(Utility.IsFilterXString,isChecked);
+                SaveUtilityDataBoolean(Utility.IsFilterNormalString,isChecked);
             }
         });
         saveButton.setOnClickListener(new View.OnClickListener() {
@@ -84,5 +87,6 @@ public class SettingActivity extends AppCompatActivity {
         editor.putInt(Utility.WindowSizeString,Integer.parseInt(editTextWindowSize.getText().toString()));
         editor.putInt(Utility.PolyOrderString,Integer.parseInt(editTextPolyOrder.getText().toString()));
         editor.putInt(Utility.GraphSizeString,Integer.parseInt(editTextGraphSize.getText().toString()));
+        editor.apply();
     }
 }
