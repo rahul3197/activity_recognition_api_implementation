@@ -220,7 +220,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                     return;
                 case Utility.NormalF:
-                    series_normalf.appendData(
+                    series_normalf.appendData
+                            (
                             new DataPoint(dataAndFilteredData.index,dataAndFilteredData.filteredData),true,Utility.GraphSize);
 
                     return;
