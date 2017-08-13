@@ -1,6 +1,7 @@
 package com.suryajeet945.accelerometerdatasaver;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -32,6 +33,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -46,27 +49,43 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Button saveButton;
     Button startButton;
     Button stopButton;
-    int frameLength=15;
-    int polynomialOrder=4;
-    int graphSize=200;
-    int index=frameLength;
     boolean capturingData =false;
     public List<AccelerationData>Data=new ArrayList<>();
-    GraphView graph_x,graph_y;
+    GraphView
+            graphView_normal, graphView_normalf,
+            graphView_x,graphView_xf,
+            graphView_y,graphView_yf,
+            graphView_z,graphView_zf;
     List<Double> normalData =new ArrayList<>(500);
+    List<Double> xData =new ArrayList<>(500);
+    List<Double> yData =new ArrayList<>(500);
+    List<Double> zData =new ArrayList<>(500);
+
+    int index=Utility.WindowSize;
     double filteredData=0;
     List<Double>filteredDataList=new ArrayList<>();
 
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
-    SGolay sGolay;
-    HandlerClass handlerClass=new HandlerClass();
 
-    private LineGraphSeries<DataPoint> series_x,series_y;
+    HandlerClass handlerClass=new HandlerClass();
+    SharedPreferences sharedPreferences;//=getSharedPreferences("UtilityData",MODE_PRIVATE);
+
+    private LineGraphSeries<DataPoint>
+            series_x,series_xf,
+            series_y,series_yf,
+            series_z,series_zf,
+            series_normal, series_normalf;
+    ExecutorService sGolayThreads;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sharedPreferences=getSharedPreferences("UtilityData",MODE_PRIVATE);
+
+        GetSavedUtilityData();
+        InitializeGraphAndSeries();
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if (sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
@@ -74,42 +93,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         }
 
-
-        graph_x=(GraphView)findViewById(R.id.graph_x);
-        graph_x.getViewport().setScalable(true); // enables horizontal zooming and scrolling
-       // graph_x.getViewport().setScalableY(true); // enables vertical zooming and scrolling
-
-        graph_y=(GraphView)findViewById(R.id.graph_y);
-        graph_y.getViewport().setScalable(true); // enables horizontal zooming and scrolling
-       // graph_y.getViewport().setScalableY(true); // enables vertical zooming and scrolling
-
-        graph_x.getViewport().setYAxisBoundsManual(true);
-        graph_x.getViewport().setMinY(0);
-        graph_x.getViewport().setMaxY(30);
-
-        graph_y.getViewport().setYAxisBoundsManual(true);
-        graph_y.getViewport().setMinY(0);
-        graph_y.getViewport().setMaxY(30);
-
-        // data
-        series_x = new LineGraphSeries<DataPoint>();
-        series_x.setTitle("sqrt(x*x+y*y+z*z)");
-        series_x.setColor(Color.RED);
-        series_y = new LineGraphSeries<DataPoint>();
-        series_y.setTitle("Filtered");
-        series_y.setColor(Color.GREEN);
-
-        graph_x.addSeries(series_x);
-        graph_y.addSeries(series_y);
-
-        graph_x.getLegendRenderer().setVisible(true);
-        graph_x.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
-        graph_y.getLegendRenderer().setVisible(true);
-        graph_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        this.sGolayThreads = Executors.newFixedThreadPool(6);
 
         X_value=(TextView)findViewById(R.id.x_value);
         Y_value=(TextView)findViewById(R.id.y_value);
         Z_value=(TextView)findViewById(R.id.z_value);
+
         currentDataLength=(TextView)findViewById(R.id.countTextView);
 
         fileName=(EditText)findViewById(R.id.fileName);
@@ -133,13 +122,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"xyz",GetStringValueFromList(Data));
-                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"norm", normalData.toString());
-                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"filtered",filteredDataList.toString());
+                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"ty",GetStringValueFromList(Data));
+                //generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"norm", GetStringValueFromListofDoubles(normalData));
+                //generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"normalf",GetStringValueFromListofDoubles(filteredDataList));
             }
         });
 
-        sGolay=new SGolay(polynomialOrder,frameLength);
+        Utility.sGolay=new SGolay(Utility.PolyOrder,Utility.WindowSize);
 
     }
     public RealMatrix GetFrameDataFromAcceData(int index,int frameSize,List<AccelerationData>data){
@@ -177,7 +166,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public String GetStringValueFromList(List<AccelerationData>data){
         String s="";
         for (AccelerationData accelerationData:Data){
-            s+=accelerationData.x+" "+accelerationData.y+" "+accelerationData.z+"\n";
+            s+=accelerationData.x+" "+accelerationData.y+" "+accelerationData.z+" "+accelerationData.normal+" "+accelerationData.normalf +"\n";
+        }
+        return s;
+    }
+    public String GetStringValueFromListofDoubles(List<Double>data){
+        String s="";
+        for (Double accelerationData:data){
+            s+=accelerationData+"\n";
         }
         return s;
     }
@@ -186,16 +182,46 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
 
         public void handleMessage(Message msg) {
+            DataAndFilteredData dataAndFilteredData=(DataAndFilteredData ) msg.obj;
             switch (msg.what) {
-                case 1:
-
-                    series_y.appendData(
-                            new DataPoint(index,filteredData),true,graphSize);
+                case Utility.X:
+                    series_x.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.data),true,Utility.GraphSize);
 
                     return;
-                case 2:
-                    series_x.appendData(
-                            new DataPoint(index,((AccelerationData )msg.obj).NormalData()),true,graphSize);
+                case Utility.XF:
+                    series_xf.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.filteredData),true,Utility.GraphSize);
+
+                    return;
+                case Utility.Y:
+                    series_y.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.data),true,Utility.GraphSize);
+
+                    return;
+                case Utility.YF:
+                    series_yf.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.filteredData),true,Utility.GraphSize);
+
+                    return;
+                case Utility.Z:
+                    series_z.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.data),true,Utility.GraphSize);
+
+                    return;
+                case Utility.ZF:
+                    series_zf.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.filteredData),true,Utility.GraphSize);
+
+                    return;
+                case Utility.Normal:
+                    series_normal.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.data),true,Utility.GraphSize);
+
+                    return;
+                case Utility.NormalF:
+                    series_normalf.appendData(
+                            new DataPoint(dataAndFilteredData.index,dataAndFilteredData.filteredData),true,Utility.GraphSize);
 
                     return;
                 default:
@@ -203,44 +229,120 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         }
     }
-    protected void onResume() {
-        super.onResume();
-        //mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-    }
+
 
     protected void onPause() {
         super.onPause();
       //  mSensorManager.unregisterListener(this);
     }
     int delay=0;
+    double normal;
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
 
         if (capturingData && sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            delay++;
+            /*delay++;
             if (delay == 5) {
                 delay = 0;
-            }
+            }*/
             if (delay == 0) {
                 float x, y, z;
                 x = sensorEvent.values[0];
                 y = sensorEvent.values[1];
                 z = sensorEvent.values[2];
 
+                normal=Math.sqrt(x * x + y * y + z * z);
+                AccelerationData accelerationData = new AccelerationData(index,x,y,z,normal,0,0,0,filteredData);
 
-                normalData.add(Math.sqrt(x * x + y * y + z * z));
+                normalData.add(normal);
+                xData.add((double)x);
+                yData.add((double)y);
+                zData.add((double)z);
+
                 X_value.setText(Float.toString(x));
                 Y_value.setText(Float.toString(y));
                 Z_value.setText(Float.toString(z));
-                AccelerationData accelerationData = new AccelerationData(sensorEvent.values[0], sensorEvent.values[1], sensorEvent.values[2]);
-                handlerClass.obtainMessage(2, accelerationData).sendToTarget();
 
-                if (normalData.size()>2*frameLength+1) {
-                    RealMatrix frameData=GetFrameData(index, frameLength, normalData);
-                    filteredData = sGolay.GetFiltredData(frameData);
-                    filteredDataList.add(filteredData);
-                    handlerClass.obtainMessage(1, accelerationData).sendToTarget();
-                    index++;
+
+                if (normalData.size()>2*Utility.WindowSize+1) {
+                    if(Utility.IsFilterX){
+                        final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, xData);
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.x,0);
+                        sGolayThreads.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                double filteredData = Utility.sGolay.GetFiltredData(frameData);
+                                dataAndFilteredData.filteredData = filteredData;
+                                filteredDataList.add(filteredData);
+                                handlerClass.obtainMessage(Utility.X, dataAndFilteredData).sendToTarget();
+                                handlerClass.obtainMessage(Utility.XF, dataAndFilteredData).sendToTarget();
+                            }
+                        });
+                    }
+                    if(Utility.IsFilterY){
+                        final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, yData);
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.y,0);
+                        sGolayThreads.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                double filteredData = Utility.sGolay.GetFiltredData(frameData);
+                                dataAndFilteredData.filteredData = filteredData;
+                                filteredDataList.add(filteredData);
+                                handlerClass.obtainMessage(Utility.Y, dataAndFilteredData).sendToTarget();
+                                handlerClass.obtainMessage(Utility.YF, dataAndFilteredData).sendToTarget();
+                            }
+                        });
+                    }
+                    if(Utility.IsFilterZ){
+                        final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, zData);
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.normal,0);
+                        sGolayThreads.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                double filteredData = Utility.sGolay.GetFiltredData(frameData);
+                                dataAndFilteredData.filteredData = filteredData;
+                                filteredDataList.add(filteredData);
+                                handlerClass.obtainMessage(Utility.Z, dataAndFilteredData).sendToTarget();
+                                handlerClass.obtainMessage(Utility.ZF, dataAndFilteredData).sendToTarget();
+                            }
+                        });
+                    }
+                    if(Utility.IsFilterNormal) {
+                        final RealMatrix frameData = GetFrameData(index, Utility.WindowSize, normalData);
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.normal,0);
+                        sGolayThreads.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                double filteredData = Utility.sGolay.GetFiltredData(frameData);
+                                dataAndFilteredData.filteredData = filteredData;
+                                filteredDataList.add(filteredData);
+                                handlerClass.obtainMessage(Utility.Normal, dataAndFilteredData).sendToTarget();
+                                handlerClass.obtainMessage(Utility.NormalF, dataAndFilteredData).sendToTarget();
+                            }
+                        });
+                    }
+                    if(Utility.IsFilterX||Utility.IsFilterY||Utility.IsFilterZ||Utility.IsFilterNormal) {
+                        index++;
+                    }
+
+                }else {
+                    if(Utility.IsFilterX){
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.x,0);
+                        handlerClass.obtainMessage(Utility.X, dataAndFilteredData).sendToTarget();
+                    }
+                    if(Utility.IsFilterY){
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.y,0);
+                        handlerClass.obtainMessage(Utility.Y, dataAndFilteredData).sendToTarget();
+                    }
+                    if(Utility.IsFilterZ){
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.z,0);
+                        handlerClass.obtainMessage(Utility.Z, dataAndFilteredData).sendToTarget();
+                    }
+                    if(Utility.IsFilterNormal) {
+                        final DataAndFilteredData dataAndFilteredData=new DataAndFilteredData(index,accelerationData.normal,0);
+                        handlerClass.obtainMessage(Utility.Normal, dataAndFilteredData).sendToTarget();
+                    }
+
                 }
 
                 if (Data == null) {
@@ -257,5 +359,140 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
+    }
+
+    public void SaveUtilityDataBoolean(String propertyName,boolean data){
+        SharedPreferences.Editor editor=sharedPreferences.edit();
+        editor.putBoolean(propertyName,data);
+        editor.apply();
+    }
+    public void SaveUtilityDataInt(String propertyName,int data){
+        SharedPreferences.Editor editor=sharedPreferences.edit();
+        editor.putInt(propertyName,data);
+        editor.apply();
+    }
+    public void GetSavedUtilityData(){
+        Utility.IsFilterX= sharedPreferences.getBoolean(Utility.IsFilterXString,false);
+        Utility.IsFilterY= sharedPreferences.getBoolean(Utility.IsFilterYString,false);
+        Utility.IsFilterZ= sharedPreferences.getBoolean(Utility.IsFilterZString,false);
+        Utility.IsFilterNormal= sharedPreferences.getBoolean(Utility.IsFilterNormalString,true);
+        Utility.WindowSize=sharedPreferences.getInt(Utility.WindowSizeString,15);
+        Utility.PolyOrder=sharedPreferences.getInt(Utility.PolyOrderString,7);
+        Utility.GraphSize=sharedPreferences.getInt(Utility.GraphSizeString,200);
+    }
+    @Override
+    public void onResume(){
+        super.onResume();
+        //Utility.sGolay=new SGolay(Utility.PolyOrder,Utility.WindowSize);
+
+
+    }
+    public void InitializeGraphAndSeries(){
+        graphView_x =(GraphView)findViewById(R.id.graph_x);
+        graphView_x.getViewport().setScalable(true);
+        graphView_y =(GraphView)findViewById(R.id.graph_y);
+        graphView_y.getViewport().setScalable(true);
+        graphView_z =(GraphView)findViewById(R.id.graph_z);
+        graphView_z.getViewport().setScalable(true);
+        graphView_normal =(GraphView)findViewById(R.id.graph_normal);
+        graphView_normal.getViewport().setScalable(true);
+
+        graphView_xf =(GraphView)findViewById(R.id.graph_xf);
+        graphView_xf.getViewport().setScalable(true);
+        graphView_yf =(GraphView)findViewById(R.id.graph_yf);
+        graphView_yf.getViewport().setScalable(true);
+        graphView_zf =(GraphView)findViewById(R.id.graph_zf);
+        graphView_zf.getViewport().setScalable(true);
+        graphView_normalf =(GraphView)findViewById(R.id.graph_normalf);
+        graphView_normalf.getViewport().setScalable(true);
+
+
+        graphView_x.getViewport().setYAxisBoundsManual(true);
+        graphView_x.getViewport().setMinY(0);
+        graphView_x.getViewport().setMaxY(30);
+        graphView_y.getViewport().setYAxisBoundsManual(true);
+        graphView_y.getViewport().setMinY(0);
+        graphView_y.getViewport().setMaxY(30);
+        graphView_z.getViewport().setYAxisBoundsManual(true);
+        graphView_z.getViewport().setMinY(0);
+        graphView_z.getViewport().setMaxY(30);
+        graphView_normal.getViewport().setYAxisBoundsManual(true);
+        graphView_normal.getViewport().setMinY(0);
+        graphView_normal.getViewport().setMaxY(30);
+
+        graphView_xf.getViewport().setYAxisBoundsManual(true);
+        graphView_xf.getViewport().setMinY(0);
+        graphView_xf.getViewport().setMaxY(30);
+        graphView_yf.getViewport().setYAxisBoundsManual(true);
+        graphView_yf.getViewport().setMinY(0);
+        graphView_yf.getViewport().setMaxY(30);
+        graphView_zf.getViewport().setYAxisBoundsManual(true);
+        graphView_zf.getViewport().setMinY(0);
+        graphView_zf.getViewport().setMaxY(30);
+        graphView_normalf.getViewport().setYAxisBoundsManual(true);
+        graphView_normalf.getViewport().setMinY(0);
+        graphView_normalf.getViewport().setMaxY(30);
+
+        // data
+        series_x = new LineGraphSeries<DataPoint>();
+        series_x.setTitle("x");
+        series_x.setColor(Color.RED);
+        series_y = new LineGraphSeries<DataPoint>();
+        series_y.setTitle("y");
+        series_y.setColor(Color.RED);
+        series_z = new LineGraphSeries<DataPoint>();
+        series_z.setTitle("z");
+        series_z.setColor(Color.RED);
+        series_normal = new LineGraphSeries<DataPoint>();
+        series_normal.setTitle("sqrt(x*x+y*y+z*z)");
+        series_normal.setColor(Color.RED);
+
+        series_xf = new LineGraphSeries<DataPoint>();
+        series_xf.setTitle("Filtered x");
+        series_xf.setColor(Color.RED);
+        series_yf = new LineGraphSeries<DataPoint>();
+        series_yf.setTitle("Filtered y");
+        series_yf.setColor(Color.RED);
+        series_zf = new LineGraphSeries<DataPoint>();
+        series_zf.setTitle("Filtered z");
+        series_zf.setColor(Color.RED);
+        series_normalf = new LineGraphSeries<DataPoint>();
+        series_normalf.setTitle("Filtered normal");
+        series_normalf.setColor(Color.GREEN);
+
+        graphView_x.addSeries(series_x);
+        graphView_y.addSeries(series_y);
+        graphView_z.addSeries(series_z);
+        graphView_normal.addSeries(series_normal);
+        graphView_xf.addSeries(series_xf);
+        graphView_yf.addSeries(series_yf);
+        graphView_zf.addSeries(series_zf);
+        graphView_normalf.addSeries(series_normalf);
+
+        graphView_x.getLegendRenderer().setVisible(true);
+        graphView_x.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_y.getLegendRenderer().setVisible(true);
+        graphView_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_z.getLegendRenderer().setVisible(true);
+        graphView_z.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_normal.getLegendRenderer().setVisible(true);
+        graphView_normal.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_xf.getLegendRenderer().setVisible(true);
+        graphView_xf.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_yf.getLegendRenderer().setVisible(true);
+        graphView_yf.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_zf.getLegendRenderer().setVisible(true);
+        graphView_zf.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+        graphView_normalf.getLegendRenderer().setVisible(true);
+        graphView_normalf.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+
+        graphView_x.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.INVISIBLE);
+        graphView_xf.setVisibility(Utility.IsFilterX==true?View.VISIBLE:View.INVISIBLE);
+        graphView_y.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.INVISIBLE);
+        graphView_yf.setVisibility(Utility.IsFilterY==true?View.VISIBLE:View.INVISIBLE);
+        graphView_z.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.INVISIBLE);
+        graphView_zf.setVisibility(Utility.IsFilterZ==true?View.VISIBLE:View.INVISIBLE);
+        graphView_normal.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.INVISIBLE);
+        graphView_normalf.setVisibility(Utility.IsFilterNormal==true?View.VISIBLE:View.INVISIBLE);
     }
 }

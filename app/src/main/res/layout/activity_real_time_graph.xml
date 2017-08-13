@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context="com.suryajeet945.accelerometerdatasaver.RealTimeGraph">
     <com.jjoe64.graphview.GraphView
-        android:id="@+id/graph_x"
+        android:id="@+id/graph_normal"
         android:layout_width="368dp"
         android:layout_height="300dp"
         android:isScrollContainer="true"

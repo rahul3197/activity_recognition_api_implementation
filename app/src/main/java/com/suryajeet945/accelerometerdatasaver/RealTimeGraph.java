@@ -34,8 +34,8 @@ public class RealTimeGraph extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_real_time_graph);
-        // we get graph_normal view instance
-        graph_x=(GraphView)findViewById(R.id.graph_x);
+        // we get graphView_normalf view instance
+        graph_x=(GraphView)findViewById(R.id.graph_normal);
         graph_x.getViewport().setScalable(true); // enables horizontal zooming and scrolling
         graph_x.getViewport().setScalableY(true); // enables vertical zooming and scrolling
         // data
