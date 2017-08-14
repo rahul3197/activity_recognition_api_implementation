@@ -6,3 +6,6 @@
   
  # User can change the settings
   User can set which graph he wanted to see and filter. He can modifie the SGolay filter parameters also.
+
+#You can download this app at playstore
+https://play.google.com/store/apps/details?id=com.suryajeet945.accelerometerdatasaver
