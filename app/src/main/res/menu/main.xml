@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item
-        android:id="@+id/settings"
-        android:orderInCategory="100"
-        android:title="Settings"
-        app:showAsAction="never" />
+  <item
+      android:id="@+id/settings1"
+      android:orderInCategory="100"
+      android:title="Settings"
+      app:showAsAction="never"
+      android:visible="false"/>
+  <item android:id="@+id/settings"
+      android:title="Settings"
+      android:orderInCategory="200"
+      android:icon="@drawable/setting_icon"
+      app:showAsAction="always"/>
 </menu>

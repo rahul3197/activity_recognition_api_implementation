@@ -3,6 +3,7 @@ package com.suryajeet945.accelerometerdatasaver;
 import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
@@ -13,11 +14,17 @@ public class SettingActivity extends AppCompatActivity {
     ToggleButton toggleButtonX,toggleButtonY,toggleButtonZ,toggleButtonNormal;
     EditText editTextWindowSize,editTextPolyOrder, editTextGraphSize;
     Button saveButton;
+    Toolbar toolbar;
     SharedPreferences sharedPreferences;//=getSharedPreferences("UtilityData",MODE_PRIVATE);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
+
+        toolbar =(Toolbar)findViewById(R.id.myToolBar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setHomeButtonEnabled(true);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         sharedPreferences=getSharedPreferences("UtilityData",MODE_PRIVATE);
 

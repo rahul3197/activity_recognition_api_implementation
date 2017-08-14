@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -70,7 +71,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
-
+    Toolbar toolbar;
     HandlerClass handlerClass=new HandlerClass();
     SharedPreferences sharedPreferences;//=getSharedPreferences("UtilityData",MODE_PRIVATE);
 
@@ -89,6 +90,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         GetSavedUtilityData();
         InitializeGraphAndSeries();
+
+        toolbar =(Toolbar)findViewById(R.id.myToolBar);
+        setSupportActionBar(toolbar);
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if (sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
@@ -137,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"ty",GetStringValueFromList(Data));
+                generateNoteOnSD(MainActivity.this,fileName.getText().toString()+".txt",GetStringValueFromList(Data));
                 //generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"norm", GetStringValueFromListofDoubles(normalData));
                 //generateNoteOnSD(MainActivity.this,fileName.getText().toString()+"normalf",GetStringValueFromListofDoubles(filteredDataList));
             }
@@ -179,9 +183,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
     public String GetStringValueFromList(List<AccelerationData>data){
-        String s="";
+        String s="X XF Y YF Z ZF N NF  %data formate";
         for (AccelerationData accelerationData:Data){
-            s+=accelerationData.x+" "+accelerationData.y+" "+accelerationData.z+" "+accelerationData.normal+" "+accelerationData.normalf +"\n";
+            s+=     accelerationData.x+" "+accelerationData.xf+" "+
+                    accelerationData.y+" "+accelerationData.yf+" "+
+                    accelerationData.z+" "+accelerationData.zf+" "+
+                    accelerationData.normal+" "+accelerationData.normalf +"\n";
         }
         return s;
     }
@@ -268,7 +275,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 z = sensorEvent.values[2];
 
                 normal=Math.sqrt(x * x + y * y + z * z);
-                AccelerationData accelerationData = new AccelerationData(index,x,y,z,normal,0,0,0,filteredData);
+                final AccelerationData accelerationData = new AccelerationData(index,x,y,z,normal,0,0,0,0);
 
                 normalData.add(normal);
                 xData.add((double)x);
@@ -289,6 +296,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
                                 dataAndFilteredData.filteredData = filteredData;
+                                accelerationData.xf=filteredData;
                                 filteredDataList.add(filteredData);
                                 handlerClass.obtainMessage(Utility.X, dataAndFilteredData).sendToTarget();
                                 handlerClass.obtainMessage(Utility.XF, dataAndFilteredData).sendToTarget();
@@ -303,6 +311,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
                                 dataAndFilteredData.filteredData = filteredData;
+                                accelerationData.yf=filteredData;
                                 filteredDataList.add(filteredData);
                                 handlerClass.obtainMessage(Utility.Y, dataAndFilteredData).sendToTarget();
                                 handlerClass.obtainMessage(Utility.YF, dataAndFilteredData).sendToTarget();
@@ -317,6 +326,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
                                 dataAndFilteredData.filteredData = filteredData;
+                                accelerationData.zf=filteredData;
                                 filteredDataList.add(filteredData);
                                 handlerClass.obtainMessage(Utility.Z, dataAndFilteredData).sendToTarget();
                                 handlerClass.obtainMessage(Utility.ZF, dataAndFilteredData).sendToTarget();
@@ -331,6 +341,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             public void run() {
                                 double filteredData = Utility.sGolay.GetFiltredData(frameData);
                                 dataAndFilteredData.filteredData = filteredData;
+                                accelerationData.normalf=filteredData;
                                 filteredDataList.add(filteredData);
                                 handlerClass.obtainMessage(Utility.Normal, dataAndFilteredData).sendToTarget();
                                 handlerClass.obtainMessage(Utility.NormalF, dataAndFilteredData).sendToTarget();
