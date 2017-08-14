@@ -25,7 +25,7 @@ public class SGolay {
         RealMatrix Atrans_A=A_trans.multiply(A);
         RealMatrix Atrans_A_Inverse=new LUDecomposition(Atrans_A).getSolver().getInverse();
         RealMatrix Atrans_A_Inverse_Atrans=Atrans_A_Inverse.multiply(A_trans);
-        this.H=Atrans_A_Inverse_Atrans;
+        this.H=Atrans_A_Inverse_Atrans.getRowMatrix(0);
     }
     public double GetFiltredData(RealMatrix frameData)
     {

@@ -73,4 +73,19 @@
     <string name="pref_ringtone_silent">Silent</string>
 
     <string name="pref_title_vibrate">Vibrate</string>
+    <string name="how_much_data_will_be_shown_in_graph">How much data will be shown in Graph</string>
+    <string name="graph_length">Graph Length</string>
+    <string name="give_polynomial_order_for_sgolay_filter">Give Polynomial order for SGolay filter</string>
+    <string name="polynomial_order">Polynomial Order</string>
+    <string name="give_the_window_size_for_sgolay_filter">Give the window size for SGolay filter</string>
+    <string name="window_size">Window size</string>
+    <string name="show_normalized_data_and_its_normalf_data">Show Normalized data and its normalf data</string>
+    <string name="normalized_data">Normalized data</string>
+    <string name="show_z_axis_and_its_normalf_data">Show Z-axis and its normalf data</string>
+    <string name="z_axis">Z-axis</string>
+    <string name="show_y_axis_and_its_normalf_data">Show Y-axis and its normalf data</string>
+    <string name="y_axis">Y-axis</string>
+    <string name="show_x_axis_and_its_normalf_data">Show X-axis and its normalf data</string>
+    <string name="x_axis">X-axis</string>
+    <string name="save">Save</string>
 </resources>

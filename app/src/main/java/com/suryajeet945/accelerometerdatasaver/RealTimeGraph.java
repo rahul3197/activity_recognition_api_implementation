@@ -49,8 +49,8 @@ public class RealTimeGraph extends AppCompatActivity {
 
         graph_x.getLegendRenderer().setVisible(true);
         graph_x.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
-        graph_y.getLegendRenderer().setVisible(true);
-        graph_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+      //  graph_y.getLegendRenderer().setVisible(true);
+       // graph_y.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
 
         List<Double> data=new ArrayList<>(200);
         for(int i=0;i<200;i++){
